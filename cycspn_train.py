@@ -183,13 +183,14 @@ input_256 = Variable(input_256)
 # depth = Variable(depth)
 ato = Variable(ato)
 
-'''改动！ 这里有bug load——lua版本问题，无法读取，Nonetype object
+
+#改动！ 这里有bug load——lua版本问题，无法读取，Nonetype object
 # Initialize VGG-16
 vgg = Vgg16()
-utils.init_vgg16('work/models/')
-vgg.load_state_dict(torch.load(os.path.join('work/models/', "vgg16.weight")))
+#utils.init_vgg16('./models/')
+#vgg.load_state_dict(torch.load(os.path.join('./models/', "vgg16.weight")))
 vgg.cuda()
-'''
+
 
 
 # get randomly sampled validation images and save it
