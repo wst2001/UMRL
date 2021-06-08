@@ -148,11 +148,10 @@ val_input_256 = torch.FloatTensor(opt.batchSize, inputChannelSize, (opt.imageSiz
 target, input, depth, ato = target.cuda(), input.cuda(), depth.cuda(), ato.cuda()
 val_target, val_input, val_depth, val_ato = val_target.cuda(), val_input.cuda(), val_depth.cuda(), val_ato.cuda()
 
-with torch.no_grad():
-  target = Variable(target)
-  input = Variable(input)
-  depth = Variable(depth)
-  ato = Variable(ato)
+target = Variable(target, volatile=True)
+input = Variable(input,volatile=True)
+depth = Variable(depth,volatile=True)
+ato = Variable(ato,volatile=True)
 
 target_128, input_128 = target_128.cuda(), input_128.cuda()
 val_target_128, val_input_128 = val_target_128.cuda(), val_input_128.cuda()
@@ -190,70 +189,68 @@ import time
 
 ts = time.time()
 # Begin Testing
-if __name__ == '__main__':
-  for epoch in range(1):
-    heavy, medium, light=200, 200, 200
-    
-    for i, data in enumerate(valDataloader, 0):
-      if 1:
-        print('Image:'+str(i))
-        
-        data_val = data
-        
-        t0 = time.time()
+for epoch in range(1):
+  heavy, medium, light=200, 200, 200
+  
+  for i, data in enumerate(valDataloader, 0):
+    if 1:
+      print('Image:'+str(i))
+      
+      data_val = data
+      
+      t0 = time.time()
 
-        val_input_cpu,val_target_cpu = data_val
+      val_input_cpu,val_target_cpu = data_val
 
-        val_target_cpu, val_input_cpu = val_target_cpu.float().cuda(), val_input_cpu.float().cuda()
-        val_batch_output = torch.FloatTensor(val_input.size()).fill_(0)
+      val_target_cpu, val_input_cpu = val_target_cpu.float().cuda(), val_input_cpu.float().cuda()
+      val_batch_output = torch.FloatTensor(val_input.size()).fill_(0)
 
-        val_input.resize_as_(val_input_cpu).copy_(val_input_cpu)
-        val_target=Variable(val_target_cpu)
-
-
-        z=0
+      val_input.resize_as_(val_input_cpu).copy_(val_input_cpu)
+      val_target=Variable(val_target_cpu, volatile=True)
 
 
+      z=0
 
-        with torch.no_grad():
-          for idx in range(val_input.size(0)):
-              single_img = val_input[idx,:,:,:].unsqueeze(0)
-              val_inputv = Variable(single_img)
-              val_inputv_128 = torch.nn.functional.interpolate(val_inputv, scale_factor=0.25)
-              val_inputv_256 = torch.nn.functional.interpolate(val_inputv, scale_factor=0.5)
 
+
+      with torch.no_grad():
+        for idx in range(val_input.size(0)):
+            single_img = val_input[idx,:,:,:].unsqueeze(0)
+            val_inputv = Variable(single_img, volatile=True)
+            val_inputv_128 = torch.nn.functional.interpolate(val_inputv, scale_factor=0.25)
+            val_inputv_256 = torch.nn.functional.interpolate(val_inputv, scale_factor=0.5)
 
 
 
 
-              ## Get de-rained results ##
-              #residual_val, x_hat_val, x_hatlv128, x_hatvl256 = netG(val_inputv, val_inputv_256, val_inputv_128)
 
-              t1 = time.time()
-              print('running time:'+str(t1 - t0))
-              from PIL import Image
+            ## Get de-rained results ##
+            #residual_val, x_hat_val, x_hatlv128, x_hatvl256 = netG(val_inputv, val_inputv_256, val_inputv_128)
 
-              residual_val, x_hat_val, x_hatlv128, x_hatvl256,c128,c256,c512 = netG(val_inputv, val_inputv_256, val_inputv_128)
-              tensor = x_hat_val.data.cpu()
+            t1 = time.time()
+            print('running time:'+str(t1 - t0))
+            from PIL import Image
+
+            residual_val, x_hat_val, x_hatlv128, x_hatvl256,c128,c256,c512 = netG(val_inputv, val_inputv_256, val_inputv_128)
+            tensor = x_hat_val.data.cpu()
 
 
-              ###   Save the de-rained results #####
-              from PIL import Image
-              directory = './result_all/tmp'#'./result_all/new_model_data/DID-MDN/'
-              if not os.path.exists(directory):
-                  os.makedirs(directory)
+            ###   Save the de-rained results #####
+            from PIL import Image
+            directory = './result_all/tmp'#'./result_all/new_model_data/DID-MDN/'
+            if not os.path.exists(directory):
+                os.makedirs(directory)
 
-              tensor = torch.squeeze(tensor)
-              tensor=norm_range(tensor, None)
+            tensor = torch.squeeze(tensor)
+            tensor=norm_range(tensor, None)
 
-              filename='./result_all/tmp/'+str(i)+'.png'
-              ndarr = tensor.mul(255).clamp(0, 255).byte().permute(1, 2, 0).numpy()
-              im = Image.fromarray(ndarr)
+            filename='./result_all/tmp/'+str(i)+'.png'
+            ndarr = tensor.mul(255).clamp(0, 255).byte().permute(1, 2, 0).numpy()
+            im = Image.fromarray(ndarr)
 
-              im.save(filename)
+            im.save(filename)
             
       
 t1 = time.time()
 print('running time:'+str(t1 - ts))      
 
-torch.version
