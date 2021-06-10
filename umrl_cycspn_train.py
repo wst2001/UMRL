@@ -16,7 +16,7 @@ from torch.autograd import Variable
 import pdb
 from misc import *
 import models.derain_mulcmp as net
-
+import pickle
 
 from myutils import utils
 from myutils.vgg16 import Vgg16
@@ -208,8 +208,8 @@ ato = Variable(ato)
 
 # Initialize VGG-16
 vgg = Vgg16()
-utils.init_vgg16('./models/')
-vgg.load_state_dict(torch.load(os.path.join('./models/', "vgg16.weight")))
+#utils.init_vgg16('./models/')
+#vgg.load_state_dict(torch.load(os.path.join('./models/', "vgg16.weight")))
 vgg.cuda()
 
 
@@ -238,6 +238,12 @@ vutils.save_image(val_input, '%s/real_input.png' % opt.exp, normalize=True)
 optimizerG = optim.Adam(netG.parameters(), lr = opt.lrG, betas = (opt.beta1, 0.999), weight_decay=0.00005)
 # NOTE training loop
 ganIterations = 0
+
+train_data_list = []
+if opt.netG != '':
+    with open('/content/drive/MyDrive/CVDL/UMRL/train_data.pkl', 'rb') as f:
+        train_data_list = pickle.load(f)
+
 for epoch in range(opt.niter):
   if epoch > opt.annealStart:
     adjust_learning_rate(optimizerG, opt.lrG, epoch, None, opt.annealEvery)
@@ -294,7 +300,7 @@ for epoch in range(opt.niter):
     xeff_256 = conf_256*x_hat256+(1-conf_256)*target_256
     L_img_ = criterionCAE(xeff, target) + 0.25*criterionCAE(xeff_128, target_128) + 0.5*criterionCAE(xeff_256, target_256)
     if ganIterations % (100*opt.display) == 0:
-        print(L_img_.data[0])
+        print(L_img_.item())
     tmp = torch.FloatTensor(1)
     tmp = Variable(tmp,False)
     
@@ -302,11 +308,11 @@ for epoch in range(opt.niter):
     with torch.no_grad():
         tmp = -(4.0/(width*height))*torch.sum(torch.log(conf_128+sng))- (2.0/(width*height))*torch.sum(torch.log(conf_256+sng)) - (1.0/(width*height))*torch.sum(torch.log(conf_512+sng))
         tmp = tmp.cpu()
-        if tmp.data[0]<0.25:
-            lam_cmp = 0.09*lam_cmp*(np.exp(5.4*tmp.data[0])-0.98)
+        if tmp.item()<0.25:
+            lam_cmp = 0.09*lam_cmp*(torch.exp(5.4*tmp)-0.98)
             lam_cmp = lam_cmp.cuda()
             if ganIterations % (100*opt.display) == 0:
-                print(tmp.data[0],lam_cmp)
+                print(tmp.item(),lam_cmp)
         #lam_cmp = lam_cmp.cpu()
         
     L_img_ = L_img_ - (4.0*lam_cmp/(width*height))*torch.sum(torch.log(conf_128+sng))- (2.0*lam_cmp/(width*height))*torch.sum(torch.log(conf_256+sng)) - (lam_cmp/(width*height))*torch.sum(torch.log(conf_512+sng))
@@ -352,11 +358,14 @@ for epoch in range(opt.niter):
     optimizerG.step()
     ganIterations += 1
     if ganIterations % opt.display == 0:
-      print('[%d/%d][%d/%d] L_D: %f L_img: %f L_G: %f D(x): %f D(G(z)): %f / %f'
+      print('[%d/%d][%d/%d] L_img: %f content loss: %f content loss2: %f D(x): %f D(G(z)): %f / %f'
           % (epoch, opt.niter, i, len(dataloader),
-             L_img.data[0], L_img.data[0], L_img.data[0], L_img.data[0], L_img.data[0], L_img.data[0]))
+              L_img.item(), content_loss.item(), content_loss1.item(), L_img.item(), L_img.item(), L_img.item()))
       # pdb.set_trace()
       sys.stdout.flush()
+      train_data_list.append([L_img.item(), content_loss.item(), content_loss1.item()])
+      with open('/content/drive/MyDrive/CVDL/UMRL/train_data.pkl', 'wb') as f:
+          pickle.dump(train_data_list, f)
 
     if ganIterations % opt.evalIter == 0:
       val_batch_output = torch.FloatTensor(val_input.size()).fill_(0)
