@@ -3,7 +3,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torchvision.models as models
-
+from PIL import Image
+from torchvision import transforms
 
 class BottleneckBlock(nn.Module):
     '''
@@ -316,44 +317,63 @@ class UMRL(nn.Module):
 
 
     def forward(self, x,x_256,x_128):
+        trans = transforms.Compose([
+            transforms.ToPILImage(),
+        ])
         ##HxW->H/2 x W/2 1x1->5x5->1x1->avg_pool
         x1_m=self.dense_block1(x)
         x1=self.trans_block1(x1_m)
-
+        img = trans(x1[0][0])
+        img.save('./check/features/UMRL_x1.png')
         ##H/2 x W/2->H/4 x W/4   1x1->5x5->1x1->avg_pool
         x2=(self.dense_block2(x1))
         x2=self.trans_block2(x2)
-
+        img = trans(x2[0][0])
+        img.save('./check/features/UMRL_x2.png')
         ##H/4 x W/4->H/8 x W/8  1x1->5x5->1x1->avg_pool
         x3=(self.dense_block3(x2))
         x3=self.trans_block3(x3)
-
+        img = trans(x3[0][0])
+        img.save('./check/features/UMRL_x3.png')
         ##H/8 x W/8->H/16 x W/16  1x1->5x5->1x1->avg_pool
         x3_1 = (self.dense_block3_1(x3))
         x3_1 = self.trans_block3_1(x3_1)
-
+        img = trans(x3_1[0][0])
+        img.save('./check/features/UMRL_x3_1.png')
         ##H/16 x W/16->H/8 x W/8  1x1->5x5->1x1->upsample
         x3_2 = (self.dense_block3_2(x3_1))
         x3_2 = self.trans_block3_2(x3_2)
-
+        img = trans(x3_2[0][0])
+        img.save('./check/features/UMRL_x3_2.png')
         ## Classifier  ##
 
         x4_in = torch.cat([x3_2, x3], 1)#两个H/8 x W/8的拼接起来 
         ##H/8 x W/8  1x1->5x5->1x1->upsample
         x4=(self.dense_block4(x4_in))
         x4=self.trans_block4(x4)#output： H/4 W/4 
+        img = trans(x4[0][0])
+        img.save('./check/features/UMRL_x4.png')
+
         in_rs128 = torch.cat([x4, x2], 1)##两个H/4 x W/4的拼接起来 
         res_128 = self.res_est(in_rs128)#RN 估计残差图
+        img = trans(res_128[0][0])
+        img.save('./check/features/UMRL_res128.png')
         conf_128 = self.conf_res(torch.cat([x4, res_128], 1))#把残差图和原输入拼接起来输入到CN中
-
+        img = trans(conf_128[0][0])
+        img.save('./check/features/UMRL_conf128.png')
         x5_in=torch.cat([x4, x2,res_128*conf_128], 1)
 
         x5=(self.dense_block5(x5_in))
         x5=self.trans_block5(x5)#output: H/2 W/2
+        img = trans(x5[0][0])
+        img.save('./check/features/UMRL_x5.png')
         in_rs256 = torch.cat([x5, x1], 1)
         res_256 = self.res_est(in_rs256)
+        img = trans(res_256[0][0])
+        img.save('./check/features/UMRL_res256.png')
         conf_256 = self.conf_res(torch.cat([x5, res_256], 1))
-
+        img = trans(conf_256[0][0])
+        img.save('./check/features/UMRL_conf256.png')
         x6_in=torch.cat([x5, x1,res_256*conf_256], 1)
         
         #1x1 5x5 1x1 upsample
@@ -362,7 +382,8 @@ class UMRL(nn.Module):
         #1x1 5x5 1x1conv
         x6=(self.dense_block6_1(x6))
         x6=(self.trans_block6_1(x6))#H W
-        
+        img = trans(x6[0][0])
+        img.save('./check/features/UMRL_x6.png')
         
         x7=self.relu((self.conv_refin(x6)))
         residual=self.tanh(self.refine3(x7))

@@ -236,6 +236,8 @@ vutils.save_image(val_input, '%s/real_input.png' % opt.exp, normalize=True)
 # pdb.set_trace()
 # get optimizer
 optimizerG = optim.Adam(netG.parameters(), lr = opt.lrG, betas = (opt.beta1, 0.999), weight_decay=0.00005)
+schedule = optim.lr_scheduler.StepLR(optimizerG, step_size=10, gamma=0.1)
+
 # NOTE training loop
 ganIterations = 0
 

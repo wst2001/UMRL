@@ -3,16 +3,19 @@ import argparse
 import os
 import sys
 import random
+from tensorflow.python.ops.image_ops_impl import ssim
 import torch
 import torch.nn as nn
 import torch.nn.parallel
 import torch.backends.cudnn as cudnn
+from torchvision import transforms
 cudnn.benchmark = True
 cudnn.fastest = True
 import torch.optim as optim
 import torchvision.utils as vutils
 from torch.autograd import Variable
-
+from psnr import PSNR
+from ssim import SSIM
 from misc import *
 
 import models.derain_mulcmp as net1
@@ -189,66 +192,72 @@ import time
 
 ts = time.time()
 # Begin Testing
-for epoch in range(1):
-  heavy, medium, light=200, 200, 200
-  
-  for i, data in enumerate(valDataloader, 0):
-    if 1:
-      print('Image:'+str(i))
-      
-      data_val = data
-      
-      t0 = time.time()
+if __name__ == '__main__':
+  for epoch in range(1):
+    heavy, medium, light=200, 200, 200
+    for i, data in enumerate(valDataloader, 0):
+      if 1:
+        print('Image:'+str(i))
+        
+        data_val = data
+        
+        t0 = time.time()
 
-      val_input_cpu,val_target_cpu = data_val
+        val_input_cpu,val_target_cpu = data_val
 
-      val_target_cpu, val_input_cpu = val_target_cpu.float().cuda(), val_input_cpu.float().cuda()
-      val_batch_output = torch.FloatTensor(val_input.size()).fill_(0)
+        val_target_cpu, val_input_cpu = val_target_cpu.float().cuda(), val_input_cpu.float().cuda()
+        val_batch_output = torch.FloatTensor(val_input.size()).fill_(0)
 
-      val_input.resize_as_(val_input_cpu).copy_(val_input_cpu)
-      val_target=Variable(val_target_cpu, volatile=True)
-
-
-      z=0
+        val_input.resize_as_(val_input_cpu).copy_(val_input_cpu)
+        val_target=Variable(val_target_cpu, volatile=True)
 
 
-
-      with torch.no_grad():
-        for idx in range(val_input.size(0)):
-            single_img = val_input[idx,:,:,:].unsqueeze(0)
-            val_inputv = Variable(single_img, volatile=True)
-            val_inputv_128 = torch.nn.functional.interpolate(val_inputv, scale_factor=0.25)
-            val_inputv_256 = torch.nn.functional.interpolate(val_inputv, scale_factor=0.5)
+        z=0
 
 
 
+        with torch.no_grad():
+          for idx in range(val_input.size(0)):
+              single_img = val_input[idx,:,:,:].unsqueeze(0)
+              
+              val_inputv = Variable(single_img, volatile=True)
+              val_inputv_128 = torch.nn.functional.interpolate(val_inputv, scale_factor=0.25)
+              val_inputv_256 = torch.nn.functional.interpolate(val_inputv, scale_factor=0.5)
 
 
-            ## Get de-rained results ##
-            #residual_val, x_hat_val, x_hatlv128, x_hatvl256 = netG(val_inputv, val_inputv_256, val_inputv_128)
-
-            t1 = time.time()
-            print('running time:'+str(t1 - t0))
-            from PIL import Image
-
-            residual_val, x_hat_val, x_hatlv128, x_hatvl256,c128,c256,c512 = netG(val_inputv, val_inputv_256, val_inputv_128)
-            tensor = x_hat_val.data.cpu()
 
 
-            ###   Save the de-rained results #####
-            from PIL import Image
-            directory = './result_all/tmp'#'./result_all/new_model_data/DID-MDN/'
-            if not os.path.exists(directory):
-                os.makedirs(directory)
 
-            tensor = torch.squeeze(tensor)
-            tensor=norm_range(tensor, None)
+              ## Get de-rained results ##
+              #residual_val, x_hat_val, x_hatlv128, x_hatvl256 = netG(val_inputv, val_inputv_256, val_inputv_128)
 
-            filename='./result_all/tmp/'+str(i)+'.png'
-            ndarr = tensor.mul(255).clamp(0, 255).byte().permute(1, 2, 0).numpy()
-            im = Image.fromarray(ndarr)
+              t1 = time.time()
+              print('running time:'+str(t1 - t0))
+              from PIL import Image
 
-            im.save(filename)
+              residual_val, x_hat_val, x_hatlv128, x_hatvl256,c128,c256,c512 = netG(val_inputv, val_inputv_256, val_inputv_128)
+              tensor = x_hat_val.data.cpu()
+
+
+              ###   Save the de-rained results #####
+              from PIL import Image
+              directory = './result_all/tmp'#'./result_all/new_model_data/DID-MDN/'
+              if not os.path.exists(directory):
+                  os.makedirs(directory)
+
+              tensor = torch.squeeze(tensor)
+              tensor=norm_range(tensor, None)
+
+              filename='./result_all/tmp/'+str(i)+'.png'
+              ndarr = tensor.mul(255).clamp(0, 255).byte().permute(1, 2, 0).numpy()
+              
+              import matplotlib.pyplot as plt
+              target = val_target.squeeze().cpu()
+              print(PSNR(target, transforms.Normalize(0.5, 0.5)(tensor)))
+              print(SSIM(target, transforms.Normalize(0.5, 0.5)(tensor)))
+              im = Image.fromarray(ndarr)
+
+              im.save(filename)
             
       
 t1 = time.time()

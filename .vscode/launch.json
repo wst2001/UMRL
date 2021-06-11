@@ -11,8 +11,8 @@
             "program": "${file}",
             "console": "integratedTerminal",
             "args": [
-                "--dataroot", "./DID-MDN-training/Rain_Heavy/train2018new",
-                "--valDataroot", "./facades/validation",
+                "--dataroot", "../DID-MDN-datasets/DID-MDN-training/Rain_Heavy/train2018new",
+                "--valDataroot", "../DID-MDN-datasets/DID-MDN-test",
                 "--netG", "./pre_trained/Net_DIDMDN.pth",
             ]
 
