@@ -192,6 +192,8 @@ import time
 
 ts = time.time()
 # Begin Testing
+total_psnr = 0.0
+total_ssim = 0.0
 if __name__ == '__main__':
   for epoch in range(1):
     heavy, medium, light=200, 200, 200
@@ -251,15 +253,19 @@ if __name__ == '__main__':
               filename='./result_all/tmp/'+str(i)+'.png'
               ndarr = tensor.mul(255).clamp(0, 255).byte().permute(1, 2, 0).numpy()
               
-              import matplotlib.pyplot as plt
-              target = val_target.squeeze().cpu()
-              print(PSNR(target, transforms.Normalize(0.5, 0.5)(tensor)))
-              print(SSIM(target, transforms.Normalize(0.5, 0.5)(tensor)))
+
+              psnr = PSNR(val_target, transforms.Normalize(0.5, 0.5)(tensor))
+              ssim = SSIM(val_target, transforms.Normalize(0.5, 0.5)(tensor))
+              total_psnr += psnr.item()
+              total_ssim += ssim
+              print("PSNR: %.2f SSIM %.2f" % (psnr.item(), ssim))
               im = Image.fromarray(ndarr)
 
-              im.save(filename)
+              #im.save(filename)
             
       
 t1 = time.time()
-print('running time:'+str(t1 - ts))      
+print('running time:'+str(t1 - ts))
+print("Avg PSNR", total_psnr/len(valDataloader))
+print("Avg SSIM", total_ssim/len(valDataloader))
 

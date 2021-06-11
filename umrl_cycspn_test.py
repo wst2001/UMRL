@@ -12,10 +12,11 @@ cudnn.fastest = True
 import torch.optim as optim
 import torchvision.utils as vutils
 from torch.autograd import Variable
-
+from psnr import PSNR
+from ssim import SSIM
 from misc import *
 import models.derain_mulcmp as net1
-
+from torchvision.transforms import Normalize
 from myutils.vgg16 import Vgg16
 from myutils import utils
 import pdb
@@ -265,10 +266,16 @@ if __name__ == "__main__":
               directory = './result_all/umrl_fu/'#'./result_all/new_model_data/DID-MDN/'
               if not os.path.exists(directory):
                   os.makedirs(directory)
-
+              
               tensor = torch.squeeze(tensor)
               tensor=norm_range(tensor, None)
-
+              target = val_target.detach()
+              result = tensor.detach()
+              psnr = PSNR(target, Normalize(0.5, 0.5)(result))
+              target = val_target.detach()
+              result = tensor.detach()
+              ssim = SSIM(target, Normalize(0.5, 0.5)(result))
+              print("PSNR: %.2f SSIM %.2f" % (psnr.item(), ssim))
               filename='./result_all/umrl_fu/'+str(i)+'.png'
               ndarr = tensor.mul(255).clamp(0, 255).byte().permute(1, 2, 0).numpy()
               im = Image.fromarray(ndarr)
